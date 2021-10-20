@@ -7,6 +7,7 @@ import (
 	"hash/fnv"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/globalsign/mgo/bson"
@@ -285,7 +286,7 @@ func main() {
 
 	inputFilename := os.Args[1]
 
-	outputFilename := "./safelist-hashed.json"
+	outputFilename := strings.TrimSuffix(inputFilename, filepath.Ext(inputFilename)) + "-hashed.json"
 
 	if len(os.Args) == 3 {
 		outputFilename = os.Args[2]
