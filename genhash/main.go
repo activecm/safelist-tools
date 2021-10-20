@@ -14,8 +14,8 @@ import (
 
 type (
 
-	// Entry defines an entry in the global whitelist. The entries must be serializable
-	// to both JSON and BSON for exporting the whitelist to a json file and writing the whitelist to MongoDB.
+	// Entry defines an entry in the global safelist. The entries must be serializable
+	// to both JSON and BSON for exporting the safelist to a json file and writing the safelist to MongoDB.
 	// The type field defines which of the possible entry definitions exists within the structure.
 	Entry struct {
 		ObjectID bson.ObjectId `bson:"_id,omitempty" json:"_id,omitempty"`
@@ -157,9 +157,9 @@ func StringHashKey(i string) (int64, error) {
 	return int64(unsignedHash.Sum64()), nil
 }
 
-// loadWhitelist reads in a file that contains
+// loadSafelist reads in a file that contains
 // an array of JSON entries
-func loadWhitelist(file string) ([]Entry, error) {
+func loadSafelist(file string) ([]Entry, error) {
 	jsonFile, fileErr := os.Open(file)
 
 	if fileErr != nil {
@@ -170,24 +170,24 @@ func loadWhitelist(file string) ([]Entry, error) {
 
 	byteValue, _ := ioutil.ReadAll(jsonFile)
 
-	// Unmarshal the JSON into a list of whitelist.Entry structs
-	var whitelistDocument []Entry
-	jsonErr := json.Unmarshal(byteValue, &whitelistDocument)
+	// Unmarshal the JSON into a list of safelist.Entry structs
+	var safelistDocument []Entry
+	jsonErr := json.Unmarshal(byteValue, &safelistDocument)
 
 	if jsonErr != nil {
 		return nil, jsonErr
 	}
 
-	return whitelistDocument, nil
+	return safelistDocument, nil
 }
 
-// processWhitelist will look for whitelist entries
+// processSafelist will look for safelist entries
 // that do no have a HashKey present, generate the
-// HashKey for those entries, and update the whitelistDocument
+// HashKey for those entries, and update the safelistDocument
 // array with the new HashKey values
-func processWhitelist(whitelistDocument []Entry) {
+func processSafelist(safelistDocument []Entry) {
 
-	for idx, currEntry := range whitelistDocument {
+	for idx, currEntry := range safelistDocument {
 		// For each entry, determine the type and
 		// calculate the hash for that entry type.
 		// I know that breaks aren't needed everywhere,
@@ -198,7 +198,7 @@ func processWhitelist(whitelistDocument []Entry) {
 			if currEntry.SchemaVersion == 0 {
 				fmt.Println("[*] SchemaVersion missing in this entry: ", currEntry)
 				fmt.Println("[+] Setting the SchemaVersion to 5", currEntry)
-				whitelistDocument[idx].SchemaVersion = 5
+				safelistDocument[idx].SchemaVersion = 5
 			}
 			switch entryType := strings.ToLower(currEntry.Type); entryType {
 
@@ -216,7 +216,7 @@ func processWhitelist(whitelistDocument []Entry) {
 					continue
 				}
 
-				whitelistDocument[idx].HashKey, err = currEntry.IPRanges.HashKey()
+				safelistDocument[idx].HashKey, err = currEntry.IPRanges.HashKey()
 				break
 
 			// Domain type entries
@@ -229,7 +229,7 @@ func processWhitelist(whitelistDocument []Entry) {
 					continue
 				}
 
-				whitelistDocument[idx].HashKey, err = StringHashKey(currEntry.Domain)
+				safelistDocument[idx].HashKey, err = StringHashKey(currEntry.Domain)
 				break
 
 			// Single IP entry
@@ -240,7 +240,7 @@ func processWhitelist(whitelistDocument []Entry) {
 					continue
 				}
 
-				whitelistDocument[idx].HashKey, err = currEntry.IP.HashKey()
+				safelistDocument[idx].HashKey, err = currEntry.IP.HashKey()
 				break
 
 			// IP pair entry
@@ -253,7 +253,7 @@ func processWhitelist(whitelistDocument []Entry) {
 					continue
 				}
 
-				whitelistDocument[idx].HashKey, err = currEntry.IPPair.HashKey()
+				safelistDocument[idx].HashKey, err = currEntry.IPPair.HashKey()
 				break
 
 			// Useragent entry
@@ -262,7 +262,7 @@ func processWhitelist(whitelistDocument []Entry) {
 					fmt.Println("[*] Missing information in this entry, skipping:", currEntry)
 					continue
 				}
-				whitelistDocument[idx].HashKey, err = StringHashKey(currEntry.Useragent)
+				safelistDocument[idx].HashKey, err = StringHashKey(currEntry.Useragent)
 				break
 
 			}
@@ -285,21 +285,21 @@ func main() {
 
 	inputFilename := os.Args[1]
 
-	outputFilename := "./whitelist-hashed.json"
+	outputFilename := "./safelist-hashed.json"
 
 	if len(os.Args) == 3 {
 		outputFilename = os.Args[2]
 	}
 
-	whitelistDocument, fileReadErr := loadWhitelist(inputFilename)
+	safelistDocument, fileReadErr := loadSafelist(inputFilename)
 
 	if fileReadErr != nil {
 		fmt.Printf("[*] Error reading data from %s: %s", inputFilename, fileReadErr)
 	}
 
-	processWhitelist(whitelistDocument[:])
+	processSafelist(safelistDocument[:])
 
-	jsonData, _ := json.Marshal(whitelistDocument)
+	jsonData, _ := json.Marshal(safelistDocument)
 
 	fileWriteErr := os.WriteFile(outputFilename, jsonData, 0644)
 
