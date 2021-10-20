@@ -2341,7 +2341,6 @@
     {
         "comment": "",
         "domain": "dns.google",
-        "hash_key": -3146138833635307171,
         "name": "dns.google",
         "schema_version": 5,
         "type": "domain_literal"
