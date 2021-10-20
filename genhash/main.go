@@ -1,10 +1,12 @@
 package main
 
 import (
+	"bufio"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"hash/fnv"
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -197,8 +199,8 @@ func processSafelist(safelistDocument []Entry) {
 		var err error
 		if currEntry.HashKey == 0 {
 			if currEntry.SchemaVersion == 0 {
-				fmt.Println("[*] SchemaVersion missing in this entry: ", currEntry)
-				fmt.Println("[+] Setting the SchemaVersion to 5", currEntry)
+				fmt.Fprintln(os.Stderr, "[*] SchemaVersion missing in this entry: ", currEntry)
+				fmt.Fprintln(os.Stderr, "[+] Setting the SchemaVersion to 5", currEntry)
 				safelistDocument[idx].SchemaVersion = 5
 			}
 			switch entryType := strings.ToLower(currEntry.Type); entryType {
@@ -213,7 +215,7 @@ func processSafelist(safelistDocument []Entry) {
 			case "ranges":
 
 				if currEntry.IPRanges.NetworkID.Kind == 0 || currEntry.IPRanges.NetworkID.Data == nil || currEntry.IPRanges.Ranges == nil {
-					fmt.Println("[*] Missing information in this entry, skipping:", currEntry)
+					fmt.Fprintln(os.Stderr, "[*] Missing information in this entry, skipping:", currEntry)
 					continue
 				}
 
@@ -226,7 +228,7 @@ func processSafelist(safelistDocument []Entry) {
 			case "domain_pattern":
 
 				if currEntry.Domain == "" {
-					fmt.Println("[*] Missing information in this entry, skipping:", currEntry)
+					fmt.Fprintln(os.Stderr, "[*] Missing information in this entry, skipping:", currEntry)
 					continue
 				}
 
@@ -237,7 +239,7 @@ func processSafelist(safelistDocument []Entry) {
 			case "ip":
 
 				if currEntry.IP.IP == "" || currEntry.IP.NetworkID.Data == nil || currEntry.IP.NetworkID.Kind == 0 {
-					fmt.Println("[*] Missing information in this entry, skipping:", currEntry)
+					fmt.Fprintln(os.Stderr, "[*] Missing information in this entry, skipping:", currEntry)
 					continue
 				}
 
@@ -250,7 +252,7 @@ func processSafelist(safelistDocument []Entry) {
 				if currEntry.IPPair.DstIP == "" || currEntry.IPPair.SrcIP == "" ||
 					currEntry.IPPair.DstNetworkUUID.Data == nil || currEntry.IPPair.DstNetworkUUID.Kind == 0 ||
 					currEntry.IPPair.SrcNetworkUUID.Data == nil || currEntry.IPPair.SrcNetworkUUID.Kind == 0 {
-					fmt.Println("[*] Missing information in this entry, skipping:", currEntry)
+					fmt.Fprintln(os.Stderr, "[*] Missing information in this entry, skipping:", currEntry)
 					continue
 				}
 
@@ -260,7 +262,7 @@ func processSafelist(safelistDocument []Entry) {
 			// Useragent entry
 			case "useragent":
 				if currEntry.Useragent == "" {
-					fmt.Println("[*] Missing information in this entry, skipping:", currEntry)
+					fmt.Fprintln(os.Stderr, "[*] Missing information in this entry, skipping:", currEntry)
 					continue
 				}
 				safelistDocument[idx].HashKey, err = StringHashKey(currEntry.Useragent)
@@ -269,8 +271,8 @@ func processSafelist(safelistDocument []Entry) {
 			}
 
 			if err != nil {
-				fmt.Println("[*] Error hashing this entry:", currEntry)
-				fmt.Println("[*] Error message generated from hasher:", err)
+				fmt.Fprintln(os.Stderr, "[*] Error hashing this entry:", currEntry)
+				fmt.Fprintln(os.Stderr, "[*] Error message generated from hasher:", err)
 			}
 
 		}
@@ -279,32 +281,62 @@ func processSafelist(safelistDocument []Entry) {
 
 func main() {
 
-	if len(os.Args) < 2 {
-		fmt.Println("[-] Usage: ./genhash inputFilename [outputFilename]")
-		os.Exit(-1)
+	var safelistDocument []Entry
+
+	// Handle reading data from pipe via standard in
+	inPipe, err := os.Stdin.Stat()
+
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "Error reading input")
 	}
 
-	inputFilename := os.Args[1]
+	if inPipe.Mode()&os.ModeCharDevice == 0 {
+		reader := bufio.NewReader(os.Stdin)
+		byteValue := make([]byte, 0, 16384)
+		currByte, err := reader.ReadByte()
 
-	outputFilename := strings.TrimSuffix(inputFilename, filepath.Ext(inputFilename)) + "-hashed.json"
+		for err != io.EOF {
+			byteValue = append(byteValue, currByte)
+			currByte, err = reader.ReadByte()
+		}
 
-	if len(os.Args) == 3 {
-		outputFilename = os.Args[2]
-	}
+		json.Unmarshal(byteValue, &safelistDocument)
 
-	safelistDocument, fileReadErr := loadSafelist(inputFilename)
+		processSafelist(safelistDocument[:])
 
-	if fileReadErr != nil {
-		fmt.Printf("[*] Error reading data from %s: %s", inputFilename, fileReadErr)
-	}
+		jsonData, _ := json.Marshal(safelistDocument)
 
-	processSafelist(safelistDocument[:])
+		fmt.Print(string(jsonData[:]))
 
-	jsonData, _ := json.Marshal(safelistDocument)
+	} else {
 
-	fileWriteErr := os.WriteFile(outputFilename, jsonData, 0644)
+		// Handle if arguments were passed in instead
+		if len(os.Args) < 2 {
+			fmt.Fprintln(os.Stderr, "[-] Usage: ./genhash inputFilename [outputFilename]")
+			os.Exit(-1)
+		}
 
-	if fileWriteErr != nil {
-		fmt.Printf("[*] Error saving to file %s: %s", outputFilename, fileWriteErr)
+		inputFilename := os.Args[1]
+
+		outputFilename := strings.TrimSuffix(inputFilename, filepath.Ext(inputFilename)) + "-hashed.json"
+
+		if len(os.Args) == 3 {
+			outputFilename = os.Args[2]
+		}
+
+		safelistDocument, fileReadErr := loadSafelist(inputFilename)
+
+		if fileReadErr != nil {
+			fmt.Fprintf(os.Stderr, "[*] Error reading data from %s: %s\n", inputFilename, fileReadErr)
+		}
+		processSafelist(safelistDocument[:])
+
+		jsonData, _ := json.Marshal(safelistDocument)
+
+		fileWriteErr := os.WriteFile(outputFilename, jsonData, 0644)
+
+		if fileWriteErr != nil {
+			fmt.Fprintf(os.Stderr, "[*] Error saving to file %s: %s\n", outputFilename, fileWriteErr)
+		}
 	}
 }
