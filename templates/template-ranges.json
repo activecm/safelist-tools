@@ -1,0 +1,1 @@
+  {"comment":"__Comment__","name":"__cidr_block/nn__","ranges":{"dst":true,"network_uuid":{"Kind":4,"Data":"/////////////////////w=="},"ranges":[{"end":__end_number__,"start":__start_number__},{"end":__optional_extra_end_number__,"start":__optional_extra_start_number__}],"src":false},"schema_version":5,"type":"ranges"},

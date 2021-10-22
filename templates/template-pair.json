@@ -1,0 +1,1 @@
+  {"comment":"__Comment__","name":"__first_ip__--__second_ip__","pair":{"dst":"__second_ip","dst_network_uuid":{"Kind":4,"Data":"/////////////////////w=="},"src":"__first_ip__","src_network_uuid":{"Kind":4,"Data":"/////////////////////g=="}},"schema_version":5,"type":"pair"},

@@ -1,0 +1,1 @@
+  {"comment":"__Comment__","name":"__unique_asn_name__","ranges":{"dst":true,"network_uuid":{"Kind":4,"Data":"/////////////////////w=="},"ranges":[{"end":__first_end_num__,"start":__first_start_num__},{"end":__second_end_num__,"start":__second_start_num_etc__}],"src":false},"schema_version":5,"type":"asn_org"},
