@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Synchronize the whitelist on 2 or more AC-Hunter servers."""
 
-__version__ = '0.0.3'
+__version__ = '0.0.4'
 
 __author__ = 'William Stearns'
 __copyright__ = 'Copyright 2021, William Stearns'
@@ -12,12 +12,15 @@ __maintainer__ = 'William Stearns'
 __status__ = 'Prototype'                                #Prototype, Development or Production
 
 #Copyright 2021, William Stearns <bill@activecountermeasures.com>
-#Released under the FIXME
+#Released under the GPL 3.0
 
+import os
 import sys
 import time						#For sleeping
 import json						#For converting between json and python lists
+import errno
 import requests						#For API calls
+
 
 def debug_out(output_string):
 	"""Send debugging output to stderr."""
@@ -27,7 +30,6 @@ def debug_out(output_string):
 		sys.stderr.flush()
 
 
-
 def fail(fail_string):
 	"""Send failure message to stderr and exit."""
 
@@ -35,6 +37,59 @@ def fail(fail_string):
 		sys.stderr.write(fail_string + ', exiting.\n')
 		sys.stderr.flush()
 	sys.exit(1)
+
+
+def load_json_from_file(json_filename):
+	"""Bring in json content from a file and return it as a python data structure (or None if not successful for any reason)."""
+
+	ljff_return = None
+
+	if os.path.exists(json_filename) and os.access(json_filename, os.R_OK):
+		try:
+			with open(json_filename) as json_h:
+				ljff_return = json.loads(json_h.read())
+		except:											# pylint: disable=bare-except
+			pass
+
+	return ljff_return
+
+
+def write_object(filename, generic_object):
+	"""Write out an object to a file."""
+
+	try:
+		with open(filename, "wb") as write_h:
+			write_h.write(generic_object.encode('utf-8'))
+	except:
+		sys.stderr.write("Problem writing " + filename + ", skipping.")
+		raise
+
+	#return
+
+
+def mkdir_p(path):
+	"""Create an entire directory branch.  Will not complain if the directory already exists."""
+
+	if not os.path.isdir(path):
+		try:
+			os.makedirs(path)
+		except FileExistsError:
+			pass
+		except OSError as exc:
+			if exc.errno == errno.EEXIST and os.path.isdir(path):
+				pass
+			else:
+				raise
+
+
+def cache_file(parent_cache_dir, host_string):
+	"""Returns the correct filename that would hold the whitelist for that host string.  Does not care if the file exists or not, but does create the directory that would hold it."""
+
+	cache_obj_path = parent_cache_dir + '/'
+
+	mkdir_p(cache_obj_path)
+
+	return cache_obj_path + host_string + '.whitelist.json'
 
 
 def api_call(target_url, verb, data_block):
@@ -165,6 +220,35 @@ def push_changes(target_host, entries_to_add):
 		debug_out('Unknown return from post.')
 
 
+def cache_whitelists(top_dir, whitelist_dict):
+	"""Loop through each of the whitelists in the dict and save them under the host ID on disk."""
+
+	for one_host in whitelist_dict:
+		if whitelist_dict[one_host]:			#Don't write out an empty dictionary - this may mean we weren't able to retrieve it.
+			debug_out('Writing cache file for ' + str(one_host))
+			write_object(cache_file(top_dir, one_host), json.dumps(whitelist_dict[one_host]))
+
+
+def process_whitelist_adds(master_whitelist, whitelist_dict):
+	"""For each host, individually find a list of whitelist entries that need to be added and add them."""
+
+	for one_ac_host in whitelist_dict:
+		host_additions = gen_host_additions(master_whitelist, whitelist_dict[one_ac_host])
+		if host_additions:
+			debug_out(str(len(host_additions)) + ' unique changes to send to ' + str(one_ac_host))
+			if cl_args['dryrun']:
+				debug_out('Changes will not be sent (dryrun mode)')
+			else:
+				push_changes(one_ac_host, host_additions)
+		else:
+			debug_out('No changes needed for host ' + str(one_ac_host))
+
+
+
+whitelist_cache_dir = os.environ["HOME"] + '/.cache/safelist-sync/'
+
+
+
 if __name__ == '__main__':
 	import argparse
 
@@ -188,32 +272,18 @@ if __name__ == '__main__':
 
 	while continue_loop:
 		debug_out('Starting sync')
-		source_whitelists = filter_by_comment(get_whitelists(cl_args['sources']), cl_args['filter'])
-		recipient_whitelists = filter_by_comment(get_whitelists(cl_args['recipients']), cl_args['filter'])
+		raw_source_whitelists = get_whitelists(cl_args['sources'])
+		source_whitelists = filter_by_comment(raw_source_whitelists, cl_args['filter'])
+		raw_recipient_whitelists = get_whitelists(cl_args['recipients'])
+		recipient_whitelists = filter_by_comment(raw_recipient_whitelists, cl_args['filter'])
 
-		master_whitelist = merge_whitelist_entries(source_whitelists)
+		master_white_dict = merge_whitelist_entries(source_whitelists)
 
-		for one_ac_host in source_whitelists:
-			host_additions = gen_host_additions(master_whitelist, source_whitelists[one_ac_host])
-			if host_additions:
-				debug_out(str(len(host_additions)) + ' unique changes to send to ' + str(one_ac_host))
-				if cl_args['dryrun']:
-					debug_out('Changes will not be sent (dryrun mode)')
-				else:
-					push_changes(one_ac_host, host_additions)
-			else:
-				debug_out('No changes needed for host ' + str(one_ac_host))
+		process_whitelist_adds(master_white_dict, source_whitelists)
+		process_whitelist_adds(master_white_dict, recipient_whitelists)
 
-		for one_ac_host in recipient_whitelists:
-			host_additions = gen_host_additions(master_whitelist, recipient_whitelists[one_ac_host])
-			if host_additions:
-				debug_out(str(len(host_additions)) + ' unique changes to send to ' + str(one_ac_host))
-				if cl_args['dryrun']:
-					debug_out('Changes will not be sent (dryrun mode)')
-				else:
-					push_changes(one_ac_host, host_additions)
-			else:
-				debug_out('No changes needed for host ' + str(one_ac_host))
+		cache_whitelists(whitelist_cache_dir, raw_source_whitelists)
+		cache_whitelists(whitelist_cache_dir, raw_recipient_whitelists)
 
 		debug_out('')
 		try:
