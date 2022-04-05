@@ -6,7 +6,7 @@
 # To set a comment to use for all additions, run this before starting the script (without the leading "#"):
 #	export WL_COMMENT="Put your comment here"
 
-# version 0.0.3
+# version 0.0.4
 # author: Logan Lembke (hostname modifications by Bill S)
 
 
@@ -22,7 +22,10 @@ EOF
 }
 
 
-HUNTER_INTERNAL_IP=`sudo docker inspect achunter_api -f "{{.NetworkSettings.Networks.aihunter_default.IPAddress}}" 2>/dev/null`
+HUNTER_INTERNAL_IP=`sudo docker inspect achunter_api -f "{{.NetworkSettings.Networks.achunter_default.IPAddress}}" 2>/dev/null`
+if [ -z "$HUNTER_INTERNAL_IP" ]; then
+	HUNTER_INTERNAL_IP=`sudo docker inspect achunter_api -f "{{.NetworkSettings.Networks.aihunter_default.IPAddress}}" 2>/dev/null`
+fi
 if [ -z "$HUNTER_INTERNAL_IP" ]; then
 	HUNTER_INTERNAL_IP=`sudo docker inspect aihunter_api -f "{{.NetworkSettings.Networks.aihunter_default.IPAddress}}"`
 fi
