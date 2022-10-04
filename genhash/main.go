@@ -481,6 +481,7 @@ func main() {
 		jsonData, _ := json.Marshal(safelistDocument)
 
 		fmt.Print(string(jsonData[:]))
+		fmt.Println("feeding in stdin")
 
 	} else {
 
@@ -508,7 +509,7 @@ func main() {
 		jsonData, _ := json.Marshal(safelistDocument)
 
 		fileWriteErr := os.WriteFile(outputFilename, jsonData, 0644)
-
+		fmt.Println("wrote file to disk ", outputFilename)
 		if fileWriteErr != nil {
 			fmt.Fprintf(os.Stderr, "[*] Error saving to file %s: %s\n", outputFilename, fileWriteErr)
 		}
