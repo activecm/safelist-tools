@@ -29,7 +29,7 @@ jobs:
 
       - name: Generate hashed safelist
         working-directory: ./genhash
-        run: genhash safelist-orig.json safelist-unhashed.json
+        run: ./genhash safelist-orig.json safelist-unhashed.json
 
       - name: Test
         working-directory: ./genhash
