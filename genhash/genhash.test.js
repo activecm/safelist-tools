@@ -1,6 +1,6 @@
 const originalSafelist = require('./safelist-orig.json')
-const generatedSafelist = require('./generated-hashes.json')
 const unhashedSafelist = require('./safelist-unhashed.json')
+const generatedSafelist = require('./generated-hashes.json')
 
 // beforeAll(() => {
 //     const build = new Promise((resolve, reject) => {
