@@ -23,6 +23,10 @@ jobs:
         with:
           cache-dependency-path: genhash/package-lock.json
 
+      - name: Install Node Packages
+        working-directory: ./genhash
+        run: npm i
+
       - name: Unhash safelist
         working-directory: ./genhash
         run: node unhash-safelist.js
