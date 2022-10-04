@@ -1,12 +1,10 @@
 package main
 
 import (
-	"bufio"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"hash/fnv"
-	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -458,60 +456,59 @@ func main() {
 	var safelistDocument []Entry
 
 	// Handle reading data from pipe via standard in
-	inPipe, err := os.Stdin.Stat()
+	// inPipe, err := os.Stdin.Stat()
 
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error reading input")
+	// if err != nil {
+	// 	fmt.Fprintln(os.Stderr, "Error reading input")
+	// }
+
+	// if inPipe.Mode()&os.ModeCharDevice == 0 {
+	// 	reader := bufio.NewReader(os.Stdin)
+	// 	byteValue := make([]byte, 0, 16384)
+	// 	currByte, err := reader.ReadByte()
+
+	// 	for err != io.EOF {
+	// 		byteValue = append(byteValue, currByte)
+	// 		currByte, err = reader.ReadByte()
+	// 	}
+
+	// 	json.Unmarshal(byteValue, &safelistDocument)
+
+	// 	processSafelist(safelistDocument[:])
+
+	// 	jsonData, _ := json.Marshal(safelistDocument)
+
+	// 	fmt.Print(string(jsonData[:]))
+
+	// } else {
+
+	// Handle if arguments were passed in instead
+	if len(os.Args) < 2 {
+		fmt.Fprintln(os.Stderr, "[-] Usage: ./genhash inputFilename [outputFilename]")
+		os.Exit(-1)
 	}
 
-	if inPipe.Mode()&os.ModeCharDevice == 0 {
-		reader := bufio.NewReader(os.Stdin)
-		byteValue := make([]byte, 0, 16384)
-		currByte, err := reader.ReadByte()
+	inputFilename := os.Args[1]
 
-		for err != io.EOF {
-			byteValue = append(byteValue, currByte)
-			currByte, err = reader.ReadByte()
-		}
+	outputFilename := strings.TrimSuffix(inputFilename, filepath.Ext(inputFilename)) + "-hashed.json"
 
-		json.Unmarshal(byteValue, &safelistDocument)
-
-		processSafelist(safelistDocument[:])
-
-		jsonData, _ := json.Marshal(safelistDocument)
-
-		fmt.Print(string(jsonData[:]))
-		fmt.Println("feeding in stdin")
-
-	} else {
-
-		// Handle if arguments were passed in instead
-		if len(os.Args) < 2 {
-			fmt.Fprintln(os.Stderr, "[-] Usage: ./genhash inputFilename [outputFilename]")
-			os.Exit(-1)
-		}
-
-		inputFilename := os.Args[1]
-
-		outputFilename := strings.TrimSuffix(inputFilename, filepath.Ext(inputFilename)) + "-hashed.json"
-
-		if len(os.Args) == 3 {
-			outputFilename = os.Args[2]
-		}
-
-		safelistDocument, fileReadErr := loadSafelist(inputFilename)
-
-		if fileReadErr != nil {
-			fmt.Fprintf(os.Stderr, "[*] Error reading data from %s: %s\n", inputFilename, fileReadErr)
-		}
-		processSafelist(safelistDocument[:])
-
-		jsonData, _ := json.Marshal(safelistDocument)
-
-		fileWriteErr := os.WriteFile(outputFilename, jsonData, 0644)
-		fmt.Println("wrote file to disk ", outputFilename)
-		if fileWriteErr != nil {
-			fmt.Fprintf(os.Stderr, "[*] Error saving to file %s: %s\n", outputFilename, fileWriteErr)
-		}
+	if len(os.Args) == 3 {
+		outputFilename = os.Args[2]
 	}
+
+	safelistDocument, fileReadErr := loadSafelist(inputFilename)
+
+	if fileReadErr != nil {
+		fmt.Fprintf(os.Stderr, "[*] Error reading data from %s: %s\n", inputFilename, fileReadErr)
+	}
+	processSafelist(safelistDocument[:])
+
+	jsonData, _ := json.Marshal(safelistDocument)
+
+	fileWriteErr := os.WriteFile(outputFilename, jsonData, 0644)
+
+	if fileWriteErr != nil {
+		fmt.Fprintf(os.Stderr, "[*] Error saving to file %s: %s\n", outputFilename, fileWriteErr)
+	}
+	// }
 }
