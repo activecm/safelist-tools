@@ -1,0 +1,14 @@
+{
+  "name": "genhash",
+  "version": "1.0.0",
+  "description": "test genhash",
+  "main": "genhash.test.js",
+  "scripts": {
+    "test": "jest"
+  },
+  "author": "Naomi Kramer",
+  "license": "ISC",
+  "devDependencies": {
+    "jest": "^29.1.2"
+  }
+}

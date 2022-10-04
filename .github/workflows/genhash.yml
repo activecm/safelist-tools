@@ -1,0 +1,36 @@
+name: Build and test
+
+on: [pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version-file: genhash/go.mod
+          cache-dependency-path: genhash/go.sum
+
+      - name: Build Genhash
+        working-directory: ./genhash
+        run: make
+
+      - name: Setup Node.js environment
+        uses: actions/setup-node@v3.5.0
+        with:
+          cache-dependency-path: genhash/package-lock.json
+
+      - name: Unhash safelist
+        working-directory: ./genhash
+        run: node genhash/unhash-safelist.js
+
+      - name: Generate hashed safelist
+        working-directory: ./genhash
+        run: genhash safelist-orig.json safelist-unhashed.json
+
+      - name: Test
+        working-directory: ./genhash
+        run: npm run test
