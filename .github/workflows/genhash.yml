@@ -56,4 +56,5 @@ jobs:
         run: |
           node unhash-safelist.js
           ./genhash safelist-unhashed.json safelist-generated.json
+          ls
           npm run test
