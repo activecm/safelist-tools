@@ -4,7 +4,10 @@ const { exit } = require("process")
 
 function unhash() {
     // delete the unhashed safelist for convenience when testing locally
-    fs.unlinkSync("./safelist-unhashed.json")
+    // this file should never actually sit in the repository
+    if(fs.existsSync('./safelist-unhashed.json')) {
+        fs.unlinkSync("./safelist-unhashed.json")
+    }
 
     // create a new copy of the original safelist and remove the hash_key property
     const unhashedSafelist = originalSafelist.map(({hash_key, ...rest}) => rest)
