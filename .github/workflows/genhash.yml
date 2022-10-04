@@ -55,5 +55,5 @@ jobs:
         working-directory: ./genhash
         run: |
           node unhash-safelist.js
-          ./genhash safelist-unhashed.json generated-hashes.json
+          ./genhash safelist-unhashed.json safelist-generated.json
           npm run test
