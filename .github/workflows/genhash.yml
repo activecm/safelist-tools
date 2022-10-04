@@ -54,7 +54,8 @@ jobs:
       - name: Test
         working-directory: ./genhash
         run: |
+          echo 'Unhashing Safelist...'
           node unhash-safelist.js
+          echo 'Generating hashes...'
           ./genhash safelist-unhashed.json safelist-generated.json
-          ls ..
           npm run test

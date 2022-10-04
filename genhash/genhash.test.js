@@ -2,40 +2,6 @@ const originalSafelist = require('./safelist-orig.json')
 const unhashedSafelist = require('./safelist-unhashed.json')
 const generatedSafelist = require('./safelist-generated.json')
 
-// beforeAll(() => {
-//     const build = new Promise((resolve, reject) => {
-//         const make = spawn("make")
-//         make.on("error", (err) => {
-//             reject()
-//         })
-//         make.on("close", code => {
-//             if(code == 0) {
-//                 resolve()
-//             }
-//             reject()
-//         })
-//     }) 
-    
-//     const generateHashes = new Promise((resolve, reject) => {
-//         const genhash = spawn("./genhash", ["safelist-unhashed.json", "generated-safelist.json"])
-//         genhash.on("close", code => {
-//             if(code == 0) {
-//                 console.log("done")
-//                 resolve()
-//             } else {
-//                 console.error("hash generation failed")
-//                 reject()
-//             }
-//         })
-//     })
-
-//     function setup() {
-
-//     }
-//    return build.then(() => generateHashes)
-        
-// })
-    
 test('unhashed safelist is valid', () => {
     expect(unhashedSafelist.length).toBe(originalSafelist.length)
     originalSafelist.forEach((entry) => {
