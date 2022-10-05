@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/globalsign/mgo/bson"
@@ -35,11 +36,14 @@ type (
 
 		IP *IPEntry `bson:"ip,omitempty" json:"ip,omitempty"`
 
-		IPPair *IPPairEntry `bson:"pair,omitempty" json:"pair,omitempty"`
+		IPPair       *IPPairEntry       `bson:"pair,omitempty" json:"pair,omitempty"`
+		IPPairRanges *IPPairRangesEntry `bson:"pair_ranges,omitempty" json:"pair_ranges,omitempty"`
 
 		IPRanges *IPRangesEntry `bson:"ranges,omitempty" json:"ranges,omitempty"`
 
-		Domain string `bson:"domain,omitempty" json:"domain,omitempty"`
+		Domain           string                 `bson:"domain,omitempty" json:"domain,omitempty"`
+		DomainPair       *DomainPairEntry       `bson:"domain_pair,omitempty" json:"domain_pair,omitempty"`
+		DomainPairRanges *DomainPairRangesEntry `bson:"domain_pair_ranges,omitempty" json:"domain_pair_ranges,omitempty"`
 
 		Useragent string `bson:"useragent,omitempty" json:"useragent,omitempty"`
 	}
@@ -63,11 +67,39 @@ type (
 		DstNetworkUUID bson.Binary `bson:"dst_network_uuid" json:"dst_network_uuid"`
 	}
 
+	IPPairRangesEntry struct {
+		SrcRanges      []EntryIPRange `bson:"src_ranges" json:"src_ranges"`
+		SrcNetworkUUID bson.Binary    `bson:"src_network_uuid" json:"src_network_uuid"`
+		DstRanges      []EntryIPRange `bson:"dst_ranges" json:"dst_ranges"`
+		DstNetworkUUID bson.Binary    `bson:"dst_network_uuid" json:"dst_network_uuid"`
+	}
+
 	IPRangesEntry struct {
 		Ranges    []EntryIPRange `bson:"ranges" json:"ranges"`
 		NetworkID bson.Binary    `bson:"network_uuid" json:"network_uuid"`
 		Src       bool           `bson:"src" json:"src"`
 		Dst       bool           `bson:"dst" json:"dst"`
+	}
+
+	DomainPairSrcEntry struct {
+		IP        string      `bson:"ip" json:"ip"`
+		NetworkID bson.Binary `bson:"network_uuid" json:"network_uuid"`
+	}
+
+	DomainPairEntry struct {
+		Src  *DomainPairSrcEntry `bson:"src" json:"src"`
+		FQDN string              `bson:"fqdn" json:"fqdn"`
+	}
+
+	EntryDomainPairRange struct {
+		Start uint32 `bson:"start" json:"start"`
+		End   uint32 `bson:"end" json:"end"`
+	}
+
+	DomainPairRangesEntry struct {
+		NetworkID bson.Binary    `bson:"network_uuid" json:"network_uuid"`
+		FQDN      string         `bson:"fqdn" json:"fqdn"`
+		Ranges    []EntryIPRange `bson:"ranges" json:"ranges"`
 	}
 )
 
@@ -145,6 +177,105 @@ func (i *IPRangesEntry) HashKey() (int64, error) {
 	if err != nil {
 		return 0, err
 	}
+	return int64(unsignedHash.Sum64()), nil
+}
+
+func (i *IPPairRangesEntry) HashKey() (int64, error) {
+	// unordered hash for the ranges array
+	var rangeHash uint64
+
+	hashes := append(i.SrcRanges, i.DstRanges...)
+
+	for _, rng := range hashes {
+		innerHasher := fnv.New64a()
+		buf := make([]byte, 8)
+		binary.BigEndian.PutUint32(buf[0:4], rng.Start)
+		binary.BigEndian.PutUint32(buf[4:8], rng.End)
+		_, err := innerHasher.Write(buf)
+		if err != nil {
+			return 0, err
+		}
+
+		rangeHash += innerHasher.Sum64()
+	}
+
+	unsignedHash := fnv.New64a()
+
+	buf := make([]byte, 8)
+	binary.BigEndian.PutUint64(buf, rangeHash)
+
+	_, err := unsignedHash.Write(buf)
+	if err != nil {
+		return 0, err
+	}
+
+	_, err = unsignedHash.Write(i.SrcNetworkUUID.Data)
+	if err != nil {
+		return 0, err
+	}
+
+	_, err = unsignedHash.Write(i.DstNetworkUUID.Data)
+	if err != nil {
+		return 0, err
+	}
+
+	return int64(unsignedHash.Sum64()), nil
+}
+
+func (i *DomainPairEntry) HashKey() (int64, error) {
+	unsignedHash := fnv.New64a()
+	_, err := unsignedHash.Write([]byte(i.FQDN))
+	if err != nil {
+		return 0, err
+	}
+
+	_, err = unsignedHash.Write([]byte(i.Src.IP))
+	if err != nil {
+		return 0, err
+	}
+
+	_, err = unsignedHash.Write(i.Src.NetworkID.Data)
+	if err != nil {
+		return 0, err
+	}
+
+	return int64(unsignedHash.Sum64()), nil
+}
+
+func (i *DomainPairRangesEntry) HashKey() (int64, error) {
+	// unordered hash for the ranges array
+	var rangeHash uint64
+	for _, rng := range i.Ranges {
+		innerHasher := fnv.New64a()
+		buf := make([]byte, 8)
+		binary.BigEndian.PutUint32(buf[0:4], rng.Start)
+		binary.BigEndian.PutUint32(buf[4:8], rng.End)
+		_, err := innerHasher.Write(buf)
+		if err != nil {
+			return 0, err
+		}
+		rangeHash += innerHasher.Sum64()
+	}
+
+	unsignedHash := fnv.New64a()
+
+	buf := make([]byte, 8)
+	binary.BigEndian.PutUint64(buf, rangeHash)
+	_, err := unsignedHash.Write(buf)
+	if err != nil {
+		return 0, err
+	}
+
+	_, err = unsignedHash.Write(i.NetworkID.Data)
+	if err != nil {
+		return 0, err
+	}
+
+	_, err = unsignedHash.Write([]byte(i.FQDN))
+	if err != nil {
+		return 0, err
+	}
+
 	return int64(unsignedHash.Sum64()), nil
 }
 
@@ -234,6 +365,36 @@ func processSafelist(safelistDocument []Entry) {
 
 				safelistDocument[idx].HashKey, err = StringHashKey(currEntry.Domain)
 				break
+			// IP -> Domain pair type entries
+			case "domain_pair_literal":
+				fallthrough
+			case "domain_pair_pattern":
+
+				if currEntry.DomainPair.Src.IP == "" || currEntry.DomainPair.Src.NetworkID.Data == nil || currEntry.DomainPair.Src.NetworkID.Kind == 0 ||
+					currEntry.DomainPair.FQDN == "" {
+					fmt.Fprintln(os.Stderr, "[*] Missing information in this entry, skipping:", currEntry)
+					continue
+				}
+
+				safelistDocument[idx].HashKey, err = currEntry.DomainPair.HashKey()
+				break
+
+			// CIDR -> Domain pair type entries
+			case "domain_pair_cidr_literal":
+				fallthrough
+			case "domain_pair_cidr_pattern":
+				fallthrough
+			case "domain_pair_ranges_literal":
+				fallthrough
+			case "domain_pair_ranges_pattern":
+				if currEntry.DomainPairRanges.NetworkID.Data == nil || currEntry.DomainPairRanges.NetworkID.Kind == 0 || currEntry.DomainPairRanges.FQDN == "" ||
+					currEntry.DomainPairRanges.Ranges == nil {
+					fmt.Fprintln(os.Stderr, "[*] Missing information in this entry, skipping:", currEntry)
+					continue
+				}
+
+				safelistDocument[idx].HashKey, err = currEntry.DomainPairRanges.HashKey()
+				break
 
 			// Single IP entry
 			case "ip":
@@ -257,6 +418,20 @@ func processSafelist(safelistDocument []Entry) {
 				}
 
 				safelistDocument[idx].HashKey, err = currEntry.IPPair.HashKey()
+				break
+
+			// CIDR pair entry
+			case "pair_cidr":
+				fallthrough
+			case "pair_ranges":
+				if currEntry.IPPairRanges.SrcNetworkUUID.Kind == 0 || currEntry.IPPairRanges.SrcNetworkUUID.Data == nil ||
+					currEntry.IPPairRanges.DstNetworkUUID.Kind == 0 || currEntry.IPPairRanges.DstNetworkUUID.Data == nil ||
+					currEntry.IPPairRanges.SrcRanges == nil || currEntry.IPPairRanges.DstRanges == nil {
+					fmt.Fprintln(os.Stderr, "[*] Missing information in this entry, skipping:", currEntry)
+					continue
+				}
+
+				safelistDocument[idx].HashKey, err = currEntry.IPPairRanges.HashKey()
 				break
 
 			// Useragent entry
@@ -283,6 +458,11 @@ func main() {
 
 	var safelistDocument []Entry
 
+	// Check for CI env variable flag, set by Github Actions
+	isCI, err := strconv.ParseBool(os.Getenv("CI"))
+	if err != nil {
+		isCI = false
+	}
 	// Handle reading data from pipe via standard in
 	inPipe, err := os.Stdin.Stat()
 
@@ -290,7 +470,8 @@ func main() {
 		fmt.Fprintln(os.Stderr, "Error reading input")
 	}
 
-	if inPipe.Mode()&os.ModeCharDevice == 0 {
+	// Don't pipe in via stdin if running in Github Actions
+	if (inPipe.Mode()&os.ModeCharDevice == 0) && !isCI {
 		reader := bufio.NewReader(os.Stdin)
 		byteValue := make([]byte, 0, 16384)
 		currByte, err := reader.ReadByte()
