@@ -27,30 +27,6 @@ jobs:
         working-directory: ./genhash
         run: npm i
 
-      # - name: Cache unhashed safelist
-      #   id: cache-unhashed
-      #   uses: actions/cache@v2
-      #   with:
-      #     path: genhash/safelist-unhashed.json
-      #     key: ${{ runner.os }}-unhashed
-
-      # - name: Unhash safelist
-      #   working-directory: ./genhash
-      #   if: steps.cache-unhashed.outputs.cache-hit != 'true'
-      #   run: node unhash-safelist.js
-
-      # - name: Cache generated safelist
-      #   id: cache-generated
-      #   uses: actions/cache@v2
-      #   with:
-      #     path: genhash/generated-hashes.json
-      #     key: ${{ runner.os }}-generated
-
-      # - name: Generate hashed safelist
-      #   working-directory: ./genhash
-      #   if: steps.cache-generated.outputs.cache-hit != 'true'
-      #   run: ./genhash safelist-unhashed.json generated-hashes.json
-
       - name: Test
         working-directory: ./genhash
         run: |
