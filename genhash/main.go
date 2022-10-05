@@ -470,7 +470,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, "Error reading input")
 	}
 
-	// Don't pipe in via stdin if running in Actions
+	// Don't pipe in via stdin if running in Github Actions
 	if (inPipe.Mode()&os.ModeCharDevice == 0) && !isCI {
 		reader := bufio.NewReader(os.Stdin)
 		byteValue := make([]byte, 0, 16384)
