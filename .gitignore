@@ -127,3 +127,8 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# nodejs ( testing )
+/genhash/node_modules
+/genhash/safelist-unhashed.json
+/genhash/generated-hashes.json

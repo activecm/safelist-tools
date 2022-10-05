@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/globalsign/mgo/bson"
@@ -457,6 +458,11 @@ func main() {
 
 	var safelistDocument []Entry
 
+	// Check for CI env variable flag, set by Github Actions
+	isCI, err := strconv.ParseBool(os.Getenv("CI"))
+	if err != nil {
+		isCI = false
+	}
 	// Handle reading data from pipe via standard in
 	inPipe, err := os.Stdin.Stat()
 
@@ -464,7 +470,8 @@ func main() {
 		fmt.Fprintln(os.Stderr, "Error reading input")
 	}
 
-	if inPipe.Mode()&os.ModeCharDevice == 0 {
+	// Don't pipe in via stdin if running in Actions
+	if (inPipe.Mode()&os.ModeCharDevice == 0) && !isCI {
 		reader := bufio.NewReader(os.Stdin)
 		byteValue := make([]byte, 0, 16384)
 		currByte, err := reader.ReadByte()
