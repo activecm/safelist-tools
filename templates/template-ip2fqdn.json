@@ -1,0 +1,1 @@
+  {"comment":"__Comment__","domain_pair":{"fqdn":"__fqdn__","src":{"ip":"__first_ip__","network_uuid":{"Kind":4,"Data":"/////////////////////g=="}}},"name":"__first_ip__--__fqdn__","schema_version":5,"type":"domain_pair_literal"},

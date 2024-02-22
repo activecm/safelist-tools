@@ -1,0 +1,1 @@
+  {"comment":"__Comment__","domain_pair_ranges":{"fqdn":"__fqdn__","network_uuid":{"Kind":4,"Data":"/////////////////////g=="},"ranges":[{"end":__end_number__,"start":__start_number__}]},"name":"__cidr_block/nn__--__fqdn__","schema_version":5,"type":"domain_pair_cidr_literal"},
